@@ -565,74 +565,67 @@ FbxSurfaceMaterial* EMDSubmesh::exportFBXMaterial(FbxScene *scene, string materi
 		fbxMaterial->Shininess.Set(0.0);
 		fbxMaterial->Specular.Set( FbxDouble3(0.0, 0.0, 0.0) );
 		fbxMaterial->SpecularFactor.Set(0.0);
-
-
-		
-		
-		string textureName = material_name + "_dyt";
-		string filename = ((listTexturePackEMB.size() >= 2) ? (listTexturePackEMB.at(1)->getName() + "\\DATA000.dds") : "");
-		
-		//in Unity, the material have the name of texture. and as texturea have the same name for all emd part, it's not working. so we have to duplicate textures files with a custom name.
-		if (FILE *file = fopen(filename.c_str(), "r"))
-		{
-			fclose(file);
-
-			string filenameNew = ((listTexturePackEMB.size() >= 2) ? (listTexturePackEMB.at(1)->getName() + "\\" + textureName + ".dds") : "");
-			
-			//void copy_file(const char* srce_file, const char* dest_file)
-			{
-				std::ifstream srce(filename, std::ios::binary);
-				std::ofstream dest(filenameNew, std::ios::binary);
-				dest << srce.rdbuf();
-			}
-
-			filename = filenameNew;
-		}
-		
-		
-		
-		FbxFileTexture* lTexture = FbxFileTexture::Create(scene, textureName.c_str());
-
-		
-
-		// Set texture properties.
-		if (filename.size() != 0)
-		{
-			if (LibXenoverse::fileCheck(filename))
-			{
-				lTexture->SetFileName(filename.c_str());
-			}else {
-				printf("Image %s not found\n", filename.c_str());
-				notifyError();
-			}
-		}
-		lTexture->SetTextureUse(FbxTexture::eStandard);
-		lTexture->SetMappingType(FbxTexture::eUV);
-		lTexture->SetMaterialUse(FbxFileTexture::eModelMaterial);
-		lTexture->SetSwapUV(false);
-		lTexture->SetWrapMode(FbxTexture::EWrapMode::eClamp, FbxTexture::EWrapMode::eClamp);
-		lTexture->SetRotation(0.0, 0.0);
-		
-		//case for Blender
-		lTexture->SetScale(1.0, 1.0/128.0);						// one pixel of 128
-		lTexture->SetTranslation(0.0, 0.47 - (dytLineIndex * 4) / 32.0);		// on the middle of the 1st line of the block, on the right-end part.
-
-
-		// don't forget to connect the texture to the corresponding property of the material
-		if (fbxMaterial)
-		{
-			fbxMaterial->Diffuse.ConnectSrcObject(lTexture);
-			fbxMaterial->Ambient.ConnectSrcObject(lTexture);
-		}
-
-
-
 		
 		size_t nbDefs = definitions.size();
+		bool diffuseAssigned = false;
+		fbxMaterial->TransparencyFactor.Set(0.0);
 		for(size_t i=0;i<nbDefs;i++)
 		{
 			EMDTextureUnitState &def = definitions.at(i);
 			string indexStr = std::to_string(def.texIndex);
+
+			// Build source filename (DATA###.dds)
+			char dataName[20];
+			sprintf(dataName, "DATA%03u.dds", def.texIndex);
+
+			std::string sourceFile = listTexturePackEMB.size() >= 2
+				? listTexturePackEMB.at(1)->getName() + "\\" + dataName
+				: "";
+
+			// Destination filename
+			std::string destFile = listTexturePackEMB.size() >= 2
+				? listTexturePackEMB.at(1)->getName() + "\\" + material_name + "_" + indexStr + ".dds"
+				: "";
+
+			// Copy texture if it exists
+			if (!sourceFile.empty())
+			{
+				std::ifstream srce(sourceFile, std::ios::binary);
+				if (srce)
+				{
+					std::ofstream dest(destFile, std::ios::binary);
+					dest << srce.rdbuf();
+					srce.close();
+					dest.close();
+
+					// Create FBX texture node
+					FbxFileTexture* texture = FbxFileTexture::Create(fbxMaterial, (material_name + "_" + indexStr).c_str());
+					texture->SetFileName(destFile.c_str());
+					texture->SetTextureUse(FbxTexture::eStandard);
+					texture->SetMappingType(FbxTexture::eUV);
+					texture->SetMaterialUse(FbxFileTexture::eModelMaterial);
+					texture->SetSwapUV(false);
+					texture->SetTranslation(0.0, 0.0);
+					texture->SetScale(def.textScale_u, def.textScale_v);
+					texture->SetRotation(0.0, 0.0);
+
+					if (!diffuseAssigned)
+					{
+						// Assign to diffuse/base color
+						fbxMaterial->Diffuse.ConnectSrcObject(texture);
+						diffuseAssigned = true;
+					}
+					else
+					{
+						// Just add as an extra property so it’s included in the FBX
+						//std::string extraPropName = "ExtraTexture_" + indexStr;
+						//FbxProperty prop_extra = FbxProperty::Create(fbxMaterial, FbxStringDT, extraPropName.c_str());
+						//prop_extra.ModifyFlag(FbxPropertyFlags::eUserDefined, true);
+						//prop_extra.Set<FbxString>(destFile.c_str());
+					}
+				}
+			}
+
 			printf("  Material %s:\n", material_name.c_str());
 			printf("  Definition %u:\n", (unsigned int)i);
 			printf("    flag0: %u\n", def.flag0);
@@ -677,71 +670,6 @@ FbxSurfaceMaterial* EMDSubmesh::exportFBXMaterial(FbxScene *scene, string materi
 			FbxProperty prop_textScale_v = FbxProperty::Create(fbxMaterial, FbxDoubleDT, (baseName + "texScale_v").c_str());
 			prop_textScale_v.ModifyFlag(FbxPropertyFlags::eUserDefined, true);
 			prop_textScale_v.Set<double>(def.textScale_v);
-
-			//while(indexStr.length() < 3)
-			//	indexStr = "0" + indexStr;
-
-			//string textureName = material_name + "_"+ indexStr;
-			//string filename = ((listTexturePackEMB.size() >= 1) ? (listTexturePackEMB.at(0)->getName() + "\\DATA"+ indexStr +".dds") : "");
-
-
-			//if (FILE *file = fopen(filename.c_str(), "r"))
-			//{
-			//	fclose(file);
-
-			//	string filenameNew = ((listTexturePackEMB.size() >= 1) ? (listTexturePackEMB.at(0)->getName() + "\\" + textureName + ".dds") : "");
-			//	
-			//	std::ifstream srce(filename, std::ios::binary);
-			//	std::ofstream dest(filenameNew, std::ios::binary);
-			//	dest << srce.rdbuf();
-
-			//	filename = filenameNew;
-			//}
-
-			// FbxFileTexture* lTexture = FbxFileTexture::Create(scene, textureName.c_str());
-
-
-
-			// Set texture properties.
-			/*if (filename.size() != 0)
-			{
-				if (LibXenoverse::fileCheck(filename))
-				{
-					lTexture->SetFileName(filename.c_str());
-				}else {
-					printf("Image %s not found", filename.c_str());
-					notifyError();
-				}
-			}
-			lTexture->SetTextureUse(FbxTexture::eStandard);
-			lTexture->SetMappingType(FbxTexture::eUV);
-			lTexture->SetMaterialUse(FbxFileTexture::eModelMaterial);
-			lTexture->SetSwapUV(false);
-			lTexture->SetRotation(0.0, 0.0);
-			lTexture->SetScale(def.textScale_u, def.textScale_v);
-			lTexture->SetTranslation(0.0, 0.0);
-			*/
-
-			/*if (fbxMaterial)
-			{
-				if (i == 0)
-					fbxMaterial->NormalMap.ConnectSrcObject(lTexture);
-				else if (i == 1)
-					fbxMaterial->Emissive.ConnectSrcObject(lTexture);
-				else if (i == 2)
-					fbxMaterial->Reflection.ConnectSrcObject(lTexture);
-				else if (i == 3)
-					fbxMaterial->Bump.ConnectSrcObject(lTexture);
-				else if (i == 4)
-					fbxMaterial->DisplacementColor.ConnectSrcObject(lTexture);
-				else if (i == 5)
-					fbxMaterial->VectorDisplacementColor.ConnectSrcObject(lTexture);
-				else {
-					printf("Definition up to 6. skipped");
-					notifyError();
-				}
-			}
-			*/
 		}
 		
 
