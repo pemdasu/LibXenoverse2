@@ -537,6 +537,9 @@ bool EMDSubmesh::importFBX_OldMethode(FbxNode* fbxNode, FbxMesh *fbxMesh, int ma
 			if (flags & EMD_VTX_FLAG_BLEND_WEIGHT)
 			{
 				vector<pair<double, FbxNode *>> &skin_bindings = control_points_skin_bindings.at(index_tmp);
+
+				size_t blend_weight_mapping[4] = { 3, 2, 1, 0 };
+
 				for (size_t k = 0; k < skin_bindings.size(); k++)
 				{
 					bone_name = skin_bindings.at(k).second->GetName();
@@ -553,8 +556,8 @@ bool EMDSubmesh::importFBX_OldMethode(FbxNode* fbxNode, FbxMesh *fbxMesh, int ma
 
 					if (isFound != (size_t)-1)
 					{
-						v_copy.blend[k] = isFound;
-						v_copy.blend_weight[k] = (float)skin_bindings.at(k).first;
+						v_copy.blend[blend_weight_mapping[k]] = isFound;
+						v_copy.blend_weight[blend_weight_mapping[k]] = (float)skin_bindings.at(k).first;
 					}
 				}
 			}
@@ -1067,6 +1070,8 @@ void EMDSubmesh::importFBX(FbxNode* fbxNode, bool compressedFlag)
 			{
 				vector<pair<double, FbxNode *>> &skin_bindings = control_points_skin_bindings.at(index_tmp);
 
+				size_t blend_weight_mapping[4] = { 3, 2, 1, 0 };
+
 				for (size_t k = 0; k < skin_bindings.size(); k++)
 				{
 					bone_name = skin_bindings.at(k).second->GetName();
@@ -1083,8 +1088,8 @@ void EMDSubmesh::importFBX(FbxNode* fbxNode, bool compressedFlag)
 
 					if (isFound != (size_t)-1)
 					{
-						v_copy.blend[k] = isFound;
-						v_copy.blend_weight[k] = (float)skin_bindings.at(k).first;
+						v_copy.blend[blend_weight_mapping[k]] = isFound;
+						v_copy.blend_weight[blend_weight_mapping[k]] = (float)skin_bindings.at(k).first;
 					}
 				}
 			}
