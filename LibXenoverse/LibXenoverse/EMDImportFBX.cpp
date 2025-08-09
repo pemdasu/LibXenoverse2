@@ -575,10 +575,59 @@ bool EMDSubmesh::importFBX_OldMethode(FbxNode* fbxNode, FbxMesh *fbxMesh, int ma
 
 	// Create Definitions (TextureUnit)
 	EMDTextureUnitState definition;
-	
-	// Add 2 of these
-	definitions.push_back(definition);								//notice, the old case is hard coded.
-	definitions.push_back(definition);
+
+	FbxSurfaceMaterial* lMaterial = nullptr;
+	if (fbxMesh->GetNode() && fbxMesh->GetNode()->GetMaterialCount() > material_index) {
+		lMaterial = fbxMesh->GetNode()->GetMaterial(material_index);
+	}
+
+	if (lMaterial) {
+		// Read all definitions with the naming convention SubmeshDef_i_*
+		std::string materialName = lMaterial->GetName();
+		printf("Material name: %s\n", lMaterial->GetName());
+		for (int i = 0;; i++) {
+			std::string baseName = "SubmeshDef_" + materialName + "_" + std::to_string(i) + "_";
+
+			FbxProperty testProp = lMaterial->FindProperty((baseName + "flag0").c_str());
+			if (!testProp.IsValid() || !testProp.GetFlag(FbxPropertyFlags::eUserDefined)) {
+				// No more definitions found, stop reading
+				break;
+			}
+
+			EMDTextureUnitState definition;
+
+			FbxProperty prop_flag0 = lMaterial->FindProperty((baseName + "flag0").c_str());
+			if (prop_flag0.IsValid()) definition.flag0 = (unsigned char)prop_flag0.Get<int>();
+
+			FbxProperty prop_texIndex = lMaterial->FindProperty((baseName + "texIndex").c_str());
+			if (prop_texIndex.IsValid()) definition.texIndex = (unsigned char)prop_texIndex.Get<int>();
+
+			FbxProperty prop_adressMode_u = lMaterial->FindProperty((baseName + "adressMode_u").c_str());
+			if (prop_adressMode_u.IsValid()) definition.adressMode_u = (unsigned char)prop_adressMode_u.Get<int>();
+
+			FbxProperty prop_adressMode_v = lMaterial->FindProperty((baseName + "adressMode_v").c_str());
+			if (prop_adressMode_v.IsValid()) definition.adressMode_v = (unsigned char)prop_adressMode_v.Get<int>();
+
+			FbxProperty prop_filtering_minification = lMaterial->FindProperty((baseName + "filtering_minification").c_str());
+			if (prop_filtering_minification.IsValid()) definition.filtering_minification = (float)prop_filtering_minification.Get<double>();
+
+			FbxProperty prop_filtering_magnification = lMaterial->FindProperty((baseName + "filtering_magnification").c_str());
+			if (prop_filtering_magnification.IsValid()) definition.filtering_magnification = (float)prop_filtering_magnification.Get<double>();
+
+			FbxProperty prop_textScale_u = lMaterial->FindProperty((baseName + "texScale_u").c_str());
+			if (prop_textScale_u.IsValid()) definition.textScale_u = (float)prop_textScale_u.Get<double>();
+
+			FbxProperty prop_textScale_v = lMaterial->FindProperty((baseName + "texScale_v").c_str());
+			if (prop_textScale_v.IsValid()) definition.textScale_v = (float)prop_textScale_v.Get<double>();
+
+			definitions.push_back(definition);
+		}
+	} else {
+		EMDTextureUnitState definition;
+
+		definitions.push_back(definition);
+		definitions.push_back(definition);
+	}
 
 	return true;
 }
@@ -1102,16 +1151,6 @@ void EMDSubmesh::importFBX(FbxNode* fbxNode, bool compressedFlag)
 		offsetVertex += 3;
 	}
 
-	
-
-
-
-
-
-
-
-
-
 
 	// Create Definitions (TextureUnit)
 	FbxSurfaceMaterial * mat;
@@ -1120,172 +1159,62 @@ void EMDSubmesh::importFBX(FbxNode* fbxNode, bool compressedFlag)
 	size_t posIndex;
 
 	size_t nbMat = fbxNode->GetMaterialCount();
-	for (size_t i=0; i<nbMat; ++i)
+	for (size_t i = 0; i < nbMat; ++i)
 	{
 		mat = fbxNode->GetMaterial(i);
 
 		//normally, we have only one material in this case.
 		definitions.clear();									//so we cleanning.
 
-		texture = getTexture(mat, FbxSurfaceMaterial::sNormalMap);
-		if (texture)
-		{
-			//texName = LibXenoverse::nameFromFilenameNoExtension(texture->GetName(), true);
-			texName = texture->GetName();					//LibXenoverse::nameFromFilenameNoExtension not needed because the fbx loader allready remove the extension.
-			
-			posIndex = texName.find_last_of('_');
-			if (posIndex != std::string::npos)
-			{
-				texName = texName.substr(posIndex+1);
+		if (mat) {
+			// Read all definitions with the naming convention SubmeshDef_i_*
+			std::string materialName = mat->GetName();
+			printf("Material name: %s\n", mat->GetName());
+			for (int i = 0;; i++) {
+				std::string baseName = "SubmeshDef_" + materialName + "_" + std::to_string(i) + "_";
 
-				size_t textIndex = (size_t)-1;
-				try
-				{
-					textIndex = std::stoi(texName);
-				}catch (...) {
-					printf("error: on trying to convert textureIndex into number. that use TextureName, format is 'yyyyy_XXX.ext' with XXX the textureIndex.\n");
-					LibXenoverse::notifyError();
+				FbxProperty testProp = mat->FindProperty((baseName + "flag0").c_str());
+				if (!testProp.IsValid() || !testProp.GetFlag(FbxPropertyFlags::eUserDefined)) {
+					// No more definitions found, stop reading
+					break;
 				}
-				definitions.push_back(EMDTextureUnitState(textIndex, (float)texture->GetScaleU(), (float)texture->GetScaleV()) );
+
+				EMDTextureUnitState definition;
+
+				FbxProperty prop_flag0 = mat->FindProperty((baseName + "flag0").c_str());
+				if (prop_flag0.IsValid()) definition.flag0 = (unsigned char)prop_flag0.Get<int>();
+
+				FbxProperty prop_texIndex = mat->FindProperty((baseName + "texIndex").c_str());
+				if (prop_texIndex.IsValid()) definition.texIndex = (unsigned char)prop_texIndex.Get<int>();
+
+				FbxProperty prop_adressMode_u = mat->FindProperty((baseName + "adressMode_u").c_str());
+				if (prop_adressMode_u.IsValid()) definition.adressMode_u = (unsigned char)prop_adressMode_u.Get<int>();
+
+				FbxProperty prop_adressMode_v = mat->FindProperty((baseName + "adressMode_v").c_str());
+				if (prop_adressMode_v.IsValid()) definition.adressMode_v = (unsigned char)prop_adressMode_v.Get<int>();
+
+				FbxProperty prop_filtering_minification = mat->FindProperty((baseName + "filtering_minification").c_str());
+				if (prop_filtering_minification.IsValid()) definition.filtering_minification = (float)prop_filtering_minification.Get<double>();
+
+				FbxProperty prop_filtering_magnification = mat->FindProperty((baseName + "filtering_magnification").c_str());
+				if (prop_filtering_magnification.IsValid()) definition.filtering_magnification = (float)prop_filtering_magnification.Get<double>();
+
+				FbxProperty prop_textScale_u = mat->FindProperty((baseName + "texScale_u").c_str());
+				if (prop_textScale_u.IsValid()) definition.textScale_u = (float)prop_textScale_u.Get<double>();
+
+				FbxProperty prop_textScale_v = mat->FindProperty((baseName + "texScale_v").c_str());
+				if (prop_textScale_v.IsValid()) definition.textScale_v = (float)prop_textScale_v.Get<double>();
+
+				definitions.push_back(definition);
 			}
 		}
+		else {
+			EMDTextureUnitState definition;
 
-		texture = getTexture(mat, FbxSurfaceMaterial::sEmissive);
-		if (texture)
-		{
-			texName = texture->GetName();					//LibXenoverse::nameFromFilenameNoExtension not needed because the fbx loader allready remove the extension.
-
-			posIndex = texName.find_last_of('_');
-			if (posIndex != std::string::npos)
-			{
-				texName = texName.substr(posIndex + 1);
-
-				size_t textIndex = (size_t)-1;
-				try
-				{
-					textIndex = std::stoi(texName);
-				}
-				catch (...) {
-					printf("error: on trying to convert textureIndex into number. that use TextureName, format is 'yyyyy_XXX.ext' with XXX the textureIndex.\n");
-					LibXenoverse::notifyError();
-				}
-				definitions.push_back(EMDTextureUnitState(textIndex, (float)texture->GetScaleU(), (float)texture->GetScaleV()));
-			}
-		}
-
-		texture = getTexture(mat, FbxSurfaceMaterial::sReflection);
-		if (texture)
-		{
-			texName = texture->GetName();					//LibXenoverse::nameFromFilenameNoExtension not needed because the fbx loader allready remove the extension.
-
-			posIndex = texName.find_last_of('_');
-			if (posIndex != std::string::npos)
-			{
-				texName = texName.substr(posIndex + 1);
-
-				size_t textIndex = (size_t)-1;
-				try
-				{
-					textIndex = std::stoi(texName);
-				}
-				catch (...) {
-					printf("error: on trying to convert textureIndex into number. that use TextureName, format is 'yyyyy_XXX.ext' with XXX the textureIndex.\n");
-					LibXenoverse::notifyError();
-				}
-				definitions.push_back(EMDTextureUnitState(textIndex, (float)texture->GetScaleU(), (float)texture->GetScaleV()));
-			}
-		}
-
-		texture = getTexture(mat, FbxSurfaceMaterial::sBump);
-		if (texture)
-		{
-			texName = texture->GetName();					//LibXenoverse::nameFromFilenameNoExtension not needed because the fbx loader allready remove the extension.
-
-			posIndex = texName.find_last_of('_');
-			if (posIndex != std::string::npos)
-			{
-				texName = texName.substr(posIndex + 1);
-
-				size_t textIndex = (size_t)-1;
-				try
-				{
-					textIndex = std::stoi(texName);
-				}
-				catch (...) {
-					printf("error: on trying to convert textureIndex into number. that use TextureName, format is 'yyyyy_XXX.ext' with XXX the textureIndex.\n");
-					LibXenoverse::notifyError();
-				}
-				definitions.push_back(EMDTextureUnitState(textIndex, (float)texture->GetScaleU(), (float)texture->GetScaleV()));
-			}
-		}
-
-
-		texture = getTexture(mat, FbxSurfaceMaterial::sDisplacementColor);
-		if (texture)
-		{
-			texName = texture->GetName();					//LibXenoverse::nameFromFilenameNoExtension not needed because the fbx loader allready remove the extension.
-
-			posIndex = texName.find_last_of('_');
-			if (posIndex != std::string::npos)
-			{
-				texName = texName.substr(posIndex + 1);
-
-				size_t textIndex = (size_t)-1;
-				try
-				{
-					textIndex = std::stoi(texName);
-				}
-				catch (...) {
-					printf("error: on trying to convert textureIndex into number. that use TextureName, format is 'yyyyy_XXX.ext' with XXX the textureIndex.\n");
-					LibXenoverse::notifyError();
-				}
-				definitions.push_back(EMDTextureUnitState(textIndex, (float)texture->GetScaleU(), (float)texture->GetScaleV()));
-			}
-		}
-
-		texture = getTexture(mat, FbxSurfaceMaterial::sVectorDisplacementColor);
-		if (texture)
-		{
-			texName = texture->GetName();					//LibXenoverse::nameFromFilenameNoExtension not needed because the fbx loader allready remove the extension.
-
-			posIndex = texName.find_last_of('_');
-			if (posIndex != std::string::npos)
-			{
-				texName = texName.substr(posIndex + 1);
-
-				size_t textIndex = (size_t)-1;
-				try
-				{
-					textIndex = std::stoi(texName);
-				}
-				catch (...) {
-					printf("error: on trying to convert textureIndex into number. that use TextureName, format is 'yyyyy_XXX.ext' with XXX the textureIndex.\n");
-					LibXenoverse::notifyError();
-				}
-				definitions.push_back(EMDTextureUnitState(textIndex, (float)texture->GetScaleU(), (float)texture->GetScaleV()));
-			}
+			definitions.push_back(definition);
+			definitions.push_back(definition);
 		}
 	}
-
-	//hack to fix in lot of case the fact that blender export only few textures, so we lost some.
-	if (definitions.size() == 1)
-		definitions.push_back(definitions.back());
-
-	if (definitions.size() == 0)
-	{
-		definitions.push_back(EMDTextureUnitState(0, 1.0f));
-		definitions.push_back(EMDTextureUnitState(0, 1.0f));
-	}
-
-
-
-
-
-
-
-
-
-
 	//clean for indirect array
 
 	if((geoElemNorm) && (geoElemNorm->GetReferenceMode() == FbxLayerElement::eIndexToDirect))
@@ -1313,34 +1242,6 @@ void EMDSubmesh::importFBX(FbxNode* fbxNode, bool compressedFlag)
 		listVertexColors = 0;
 	}
 }
-/*-------------------------------------------------------------------------------\
-|                             getTexture										 |
-\-------------------------------------------------------------------------------*/
-FbxTexture* EMDSubmesh::getTexture(FbxSurfaceMaterial * mat, const char* typeMap)
-{
-	FbxProperty prop = mat->FindProperty(typeMap);
-	
-	size_t nbLayerTextures = prop.GetSrcObjectCount<FbxLayeredTexture>();
-	if (nbLayerTextures>0)
-	{
-		FbxLayeredTexture* layered_texture;
-		for (size_t j = 0; j < nbLayerTextures; j++)
-		{
-			layered_texture = FbxCast<FbxLayeredTexture>(prop.GetSrcObject<FbxLayeredTexture>(j));
-
-			if (layered_texture->GetSrcObjectCount<FbxTexture>()>0)
-				return FbxCast<FbxTexture>(layered_texture->GetSrcObject<FbxTexture>(0));
-		}
-
-	}else{
-		if (prop.GetSrcObjectCount<FbxTexture>()>0)
-			return FbxCast<FbxTexture>(prop.GetSrcObject<FbxTexture>(0));
-	}
-
-	return NULL;
-}
-
-
 
 
 

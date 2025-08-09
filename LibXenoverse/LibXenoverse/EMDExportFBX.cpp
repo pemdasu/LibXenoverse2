@@ -440,12 +440,6 @@ void EMDSubmesh::exportFBX(FbxScene *scene, std::vector<ESK::FbxBonesInstance_DB
 	}
 }
 
-
-
-
-
-
-
 /*-------------------------------------------------------------------------------\
 |                             CreateTableEntry									 |
 \-------------------------------------------------------------------------------*/
@@ -619,16 +613,9 @@ FbxSurfaceMaterial* EMDSubmesh::exportFBXMaterial(FbxScene *scene, string materi
 		lTexture->SetWrapMode(FbxTexture::EWrapMode::eClamp, FbxTexture::EWrapMode::eClamp);
 		lTexture->SetRotation(0.0, 0.0);
 		
-		
-		//case of Unity :
-		lTexture->SetScale(1.0/128.0, 1.0/ 1142);						// 1 line of 32, one pixel of 128 (on the line), 1142 is because of blur of filtering into Unity.
-		lTexture->SetTranslation(0.85, (32.0 - (dytLineIndex * 4 + 0.5)) / 32.0 );		// on the middle of the 1st line of the block, on the right-end part.
-		
-		/*
 		//case for Blender
 		lTexture->SetScale(1.0, 1.0/128.0);						// one pixel of 128
 		lTexture->SetTranslation(0.0, 0.47 - (dytLineIndex * 4) / 32.0);		// on the middle of the 1st line of the block, on the right-end part.
-		*/
 
 
 		// don't forget to connect the texture to the corresponding property of the material
@@ -640,40 +627,83 @@ FbxSurfaceMaterial* EMDSubmesh::exportFBXMaterial(FbxScene *scene, string materi
 
 
 
-
 		
 		size_t nbDefs = definitions.size();
 		for(size_t i=0;i<nbDefs;i++)
 		{
 			EMDTextureUnitState &def = definitions.at(i);
 			string indexStr = std::to_string(def.texIndex);
+			printf("  Material %s:\n", material_name.c_str());
+			printf("  Definition %u:\n", (unsigned int)i);
+			printf("    flag0: %u\n", def.flag0);
+			printf("    texIndex: %u\n", def.texIndex);
+			printf("    adressMode_u: %u\n", def.adressMode_u);
+			printf("    adressMode_v: %u\n", def.adressMode_v);
+			printf("    filtering_minification: %f\n", def.filtering_minification);
+			printf("    filtering_magnification: %f\n", def.filtering_magnification);
+			printf("    textScale_u: %f\n", def.textScale_u);
+			printf("    textScale_v: %f\n", def.textScale_v);
 
-			while(indexStr.length() < 3)
-				indexStr = "0" + indexStr;
+			std::string baseName = "SubmeshDef_" + material_name + "_" + std::to_string(i) + "_";
 
-			string textureName = material_name + "_"+ indexStr;
-			string filename = ((listTexturePackEMB.size() >= 1) ? (listTexturePackEMB.at(0)->getName() + "\\DATA"+ indexStr +".dds") : "");
+			FbxProperty prop_flag0 = FbxProperty::Create(fbxMaterial, FbxIntDT, (baseName + "flag0").c_str());
+			prop_flag0.ModifyFlag(FbxPropertyFlags::eUserDefined, true);
+			prop_flag0.Set<int>(def.flag0);
+
+			FbxProperty prop_texIndex = FbxProperty::Create(fbxMaterial, FbxIntDT, (baseName + "texIndex").c_str());
+			prop_texIndex.ModifyFlag(FbxPropertyFlags::eUserDefined, true);
+			prop_texIndex.Set<int>(def.texIndex);
+
+			FbxProperty prop_adressMode_u = FbxProperty::Create(fbxMaterial, FbxIntDT, (baseName + "adressMode_u").c_str());
+			prop_adressMode_u.ModifyFlag(FbxPropertyFlags::eUserDefined, true);
+			prop_adressMode_u.Set<int>(def.adressMode_u);
+
+			FbxProperty prop_adressMode_v = FbxProperty::Create(fbxMaterial, FbxIntDT, (baseName + "adressMode_v").c_str());
+			prop_adressMode_v.ModifyFlag(FbxPropertyFlags::eUserDefined, true);
+			prop_adressMode_v.Set<int>(def.adressMode_v);
+
+			FbxProperty prop_filtering_minification = FbxProperty::Create(fbxMaterial, FbxDoubleDT, (baseName + "filtering_minification").c_str());
+			prop_filtering_minification.ModifyFlag(FbxPropertyFlags::eUserDefined, true);
+			prop_filtering_minification.Set<double>(def.filtering_minification);
+
+			FbxProperty prop_filtering_magnification = FbxProperty::Create(fbxMaterial, FbxDoubleDT, (baseName + "filtering_magnification").c_str());
+			prop_filtering_magnification.ModifyFlag(FbxPropertyFlags::eUserDefined, true);
+			prop_filtering_magnification.Set<double>(def.filtering_magnification);
+
+			FbxProperty prop_textScale_u = FbxProperty::Create(fbxMaterial, FbxDoubleDT, (baseName + "texScale_u").c_str());
+			prop_textScale_u.ModifyFlag(FbxPropertyFlags::eUserDefined, true);
+			prop_textScale_u.Set<double>(def.textScale_u);
+
+			FbxProperty prop_textScale_v = FbxProperty::Create(fbxMaterial, FbxDoubleDT, (baseName + "texScale_v").c_str());
+			prop_textScale_v.ModifyFlag(FbxPropertyFlags::eUserDefined, true);
+			prop_textScale_v.Set<double>(def.textScale_v);
+
+			//while(indexStr.length() < 3)
+			//	indexStr = "0" + indexStr;
+
+			//string textureName = material_name + "_"+ indexStr;
+			//string filename = ((listTexturePackEMB.size() >= 1) ? (listTexturePackEMB.at(0)->getName() + "\\DATA"+ indexStr +".dds") : "");
 
 
-			if (FILE *file = fopen(filename.c_str(), "r"))
-			{
-				fclose(file);
+			//if (FILE *file = fopen(filename.c_str(), "r"))
+			//{
+			//	fclose(file);
 
-				string filenameNew = ((listTexturePackEMB.size() >= 1) ? (listTexturePackEMB.at(0)->getName() + "\\" + textureName + ".dds") : "");
-				
-				std::ifstream srce(filename, std::ios::binary);
-				std::ofstream dest(filenameNew, std::ios::binary);
-				dest << srce.rdbuf();
+			//	string filenameNew = ((listTexturePackEMB.size() >= 1) ? (listTexturePackEMB.at(0)->getName() + "\\" + textureName + ".dds") : "");
+			//	
+			//	std::ifstream srce(filename, std::ios::binary);
+			//	std::ofstream dest(filenameNew, std::ios::binary);
+			//	dest << srce.rdbuf();
 
-				filename = filenameNew;
-			}
+			//	filename = filenameNew;
+			//}
 
-			FbxFileTexture* lTexture = FbxFileTexture::Create(scene, textureName.c_str());
+			// FbxFileTexture* lTexture = FbxFileTexture::Create(scene, textureName.c_str());
 
 
 
 			// Set texture properties.
-			if (filename.size() != 0)
+			/*if (filename.size() != 0)
 			{
 				if (LibXenoverse::fileCheck(filename))
 				{
@@ -690,8 +720,9 @@ FbxSurfaceMaterial* EMDSubmesh::exportFBXMaterial(FbxScene *scene, string materi
 			lTexture->SetRotation(0.0, 0.0);
 			lTexture->SetScale(def.textScale_u, def.textScale_v);
 			lTexture->SetTranslation(0.0, 0.0);
+			*/
 
-			if (fbxMaterial)
+			/*if (fbxMaterial)
 			{
 				if (i == 0)
 					fbxMaterial->NormalMap.ConnectSrcObject(lTexture);
@@ -710,138 +741,12 @@ FbxSurfaceMaterial* EMDSubmesh::exportFBXMaterial(FbxScene *scene, string materi
 					notifyError();
 				}
 			}
+			*/
 		}
 		
 
 		return (FbxSurfaceMaterial*)fbxMaterial;
 	}
-
-
-	/*
-	//a Test version , with shader (in fx conversion) integrate to the material, could work with 3dsmax but , still need so correction by hand because of fbx import in 3dsmax, and it's crash on blender, so ...
-
-	
-
-	if (isFound == (size_t)-1)						//default case if there is a problem.
-	{
-		printf("DBX Material %s not found. Put a default material in fbx.\n", material_name.c_str());
-		notifyError();
-
-		FbxSurfacePhong* fbxMaterial = FbxSurfacePhong::Create(scene, FbxString(material_name.c_str()).Buffer());
-
-		fbxMaterial->ShadingModel.Set(FbxString("Phong"));
-		fbxMaterial->Emissive.Set(FbxDouble3(0.0, 0.0, 0.0));
-		fbxMaterial->Ambient.Set(FbxDouble3(0.0, 0.0, 0.0));
-		fbxMaterial->AmbientFactor.Set(1.0);
-		fbxMaterial->Diffuse.Set(FbxDouble3(1.0, 1.0, 1.0));
-		fbxMaterial->DiffuseFactor.Set(1.0);
-		fbxMaterial->Shininess.Set(0.0);
-		fbxMaterial->Specular.Set(FbxDouble3(0.0, 0.0, 0.0));
-		fbxMaterial->SpecularFactor.Set(0.0);
-
-		return (FbxSurfaceMaterial*)fbxMaterial;
-	}
-
-
-	//**** inspired by FBX_2015_1\samples\ExportShader\main.cxx
-	string &shaderName = emm_mat->getShaderName();
-
-	FbxSurfaceMaterial* fbxMaterial = FbxSurfaceMaterial::Create(scene, FbxString(material_name.c_str()).Buffer());
-	FbxImplementation* lImpl = FbxImplementation::Create(scene, FbxString((material_name + "_Implementation").c_str()));
-
-	fbxMaterial->AddImplementation(lImpl);
-	fbxMaterial->SetDefaultImplementation(lImpl);
-	lImpl->RenderAPI = FBXSDK_RENDERING_API_DIRECTX;
-	lImpl->RenderAPIVersion = "9.0";
-	lImpl->Language = FBXSDK_SHADING_LANGUAGE_HLSL;
-	lImpl->LanguageVersion = "3.0";									//TODO avant il y a avait "1.0", mais ca aurait du etre 3.0. todo verifier si ce n'etait pas ca qui faisait merder le truc, notamment dans le 3dsmax, et dans le blender.
-
-	FbxBindingTable* lTable = lTable = lImpl->AddNewTable("root", "shader");
-	lImpl->RootBindingName = "root";
-	lTable->DescAbsoluteURL = (shaderName + ".fx").c_str();			// shader file
-	lTable->DescTAG = "dx9";										// technique name
-
-	//////////////////////// custom shader parameters for this material.		
-	CustomTextureProp(scene, fbxMaterial, lTable, "g_ImageSampler1",		((listTexturePackEMB.size()>=1) ? (listTexturePackEMB.at(0)->getName() + "\\DATA000.dds") : ""));	// Property g_ImageSampler1, the property type is sample, so connect a texture to it
-	CustomTextureProp(scene, fbxMaterial, lTable, "g_SamplerToon",			((listTexturePackEMB.size()>1) ? (listTexturePackEMB.at(1)->getName() + "\\DATA000.dds") : ""));
-	CustomTextureProp(scene, fbxMaterial, lTable, "g_ImageSamplerTemp14",	((listTexturePackEMB.size()>1) ? (listTexturePackEMB.at(1)->getName() + "\\DATA001.dds") : ""));
-
-	FbxDouble4 MatCol0(0, 0, 0, 0);
-	FbxDouble4 MatCol1(0, 0, 0, 0);
-	FbxDouble4 MatCol2(0, 0, 0, 0);
-	FbxDouble4 MatCol3(0, 0, 0, 0);
-	FbxDouble4 MatScale0(1, 1, 1, 1);
-	FbxDouble4 MatScale1(1, 1, 1, 1);
-
-	vector<EMMParameter *> &parameters = emm_mat->getParameters();
-	for (size_t i = 0; i < parameters.size(); i++)
-	{
-		string parameter_name = parameters[i]->name;
-		if (parameter_name == "MatCol0R") MatCol0[0] = parameters[i]->float_value;
-		if (parameter_name == "MatCol0G") MatCol0[1] = parameters[i]->float_value;
-		if (parameter_name == "MatCol0B") MatCol0[2] = parameters[i]->float_value;
-		if (parameter_name == "MatCol0A") MatCol0[3] = parameters[i]->float_value;
-
-		if (parameter_name == "MatCol1R") MatCol1[0] = parameters[i]->float_value;
-		if (parameter_name == "MatCol1G") MatCol1[1] = parameters[i]->float_value;
-		if (parameter_name == "MatCol1B") MatCol1[2] = parameters[i]->float_value;
-		if (parameter_name == "MatCol1A") MatCol1[3] = parameters[i]->float_value;
-
-		if (parameter_name == "MatCol2R") MatCol2[0] = parameters[i]->float_value;
-		if (parameter_name == "MatCol2G") MatCol2[1] = parameters[i]->float_value;
-		if (parameter_name == "MatCol2B") MatCol2[2] = parameters[i]->float_value;
-		if (parameter_name == "MatCol2A") MatCol2[3] = parameters[i]->float_value;
-
-		if (parameter_name == "MatCol3R") MatCol3[0] = parameters[i]->float_value;
-		if (parameter_name == "MatCol3G") MatCol3[1] = parameters[i]->float_value;
-		if (parameter_name == "MatCol3B") MatCol3[2] = parameters[i]->float_value;
-		if (parameter_name == "MatCol3A") MatCol3[3] = parameters[i]->float_value;
-
-		if (parameter_name == "MatScale0X") MatScale0[0] = parameters[i]->float_value;
-		if (parameter_name == "MatScale0Y") MatScale0[1] = parameters[i]->float_value;
-		if (parameter_name == "MatScale0Z") MatScale0[2] = parameters[i]->float_value;
-		if (parameter_name == "MatScale0W") MatScale0[3] = parameters[i]->float_value;
-
-		if (parameter_name == "MatScale1X") MatScale1[0] = parameters[i]->float_value;
-		if (parameter_name == "MatScale1Y") MatScale1[1] = parameters[i]->float_value;
-		if (parameter_name == "MatScale1Z") MatScale1[2] = parameters[i]->float_value;
-		if (parameter_name == "MatScale1W") MatScale1[3] = parameters[i]->float_value;
-	}
-
-	// Override Battle Damage
-	MatCol3[0] = 0.0; // Scratch Mark Multiplier
-	MatCol3[1] = 0.0; // Blood Mark Multiplier
-
-	/*
-	FbxDouble4 val(0, 0, 0, 0);
-	CustomParameterProp(fbxMaterial, lTable, "g_vFadeMulti_PS", val);
-	CustomParameterProp(fbxMaterial, lTable, "g_vFadeRim_PS", val);
-	CustomParameterProp(fbxMaterial, lTable, "g_vFadeAdd_PS", val);
-	*//*
-
-	CustomParameterProp(fbxMaterial, lTable, "MatCol0", MatCol0);
-	CustomParameterProp(fbxMaterial, lTable, "MatCol1", MatCol1);
-	CustomParameterProp(fbxMaterial, lTable, "MatCol2", MatCol2);
-	CustomParameterProp(fbxMaterial, lTable, "MatCol3", MatCol3);
-	CustomParameterProp(fbxMaterial, lTable, "MatScale0", MatScale0);
-	CustomParameterProp(fbxMaterial, lTable, "MatScale1", MatScale1);
-
-	/*
-	CustomParameterProp(fbxMaterial, lTable, "g_vColor0_PS", val);
-	CustomParameterProp(fbxMaterial, lTable, "g_vColor1_PS", val);
-	CustomParameterProp(fbxMaterial, lTable, "g_vColor2_PS", val);
-	CustomParameterProp(fbxMaterial, lTable, "g_vColor12_PS", val);
-	val = FbxDouble4(1,1,1,1);
-	CustomParameterProp(fbxMaterial, lTable, "g_Color_Multiplier", val);
-	val = FbxDouble4(0,0,0,0);
-	CustomParameterProp(fbxMaterial, lTable, "g_vParam4_PS", val);
-	CustomParameterProp(fbxMaterial, lTable, "g_vParam5_PS", val);
-	val = FbxDouble4(0, 23.2558, 0.04587, 0);
-	CustomParameterProp(fbxMaterial, lTable, "g_Toon_Detail", val);
-	
-
-	return fbxMaterial;
-	*/
 }
 
 
